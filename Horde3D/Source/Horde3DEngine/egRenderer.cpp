@@ -1706,6 +1706,238 @@ void Renderer::drawLightShapes( const string &shaderContext, bool noShadows, int
 	}
 }
 
+
+void Renderer::drawTiledGeometry( const string &shaderContext, int theClass,
+                                  bool noShadows, RenderingOrder::List order, int occSet )
+{
+// 	Modules::sceneMan().updateQueues( _curCamera->getFrustum(), 0x0, RenderingOrder::None,
+// 	                                  SceneNodeFlags::NoDraw, true, false );
+
+    GPUTimer *timer = Modules::stats().getGPUTimer( EngineStats::FwdPlusLightsGPUTime );
+    if( Modules::config().gatherTimeStats ) timer->beginQuery( _frameID );
+
+    for( size_t i = 0, s = Modules::sceneMan().getLightQueue().size(); i < s; ++i )
+    {
+        _curLight = (LightNode *)Modules::sceneMan().getLightQueue()[i];
+
+        // Check if light is occluded
+        if( occSet >= 0 )
+        {
+            if( occSet > (int)_curLight->_occQueries.size() - 1 )
+            {
+                _curLight->_occQueries.resize( occSet + 1, 0 );
+                _curLight->_occQueriesLastVisited.resize( occSet + 1, 0 );
+            }
+            if( _curLight->_occQueries[occSet] == 0 )
+            {
+                _curLight->_occQueries[occSet] = _renderDevice->createOcclusionQuery();
+                _curLight->_occQueriesLastVisited[occSet] = 0;
+            }
+            else
+            {
+                if( _curLight->_occQueriesLastVisited[occSet] != Modules::renderer().getFrameID() )
+                {
+                    _curLight->_occQueriesLastVisited[occSet] = Modules::renderer().getFrameID();
+
+                    Vec3f bbMin, bbMax;
+                    _curLight->getFrustum().calcAABB( bbMin, bbMax );
+
+                    // Check that viewer is outside light bounds
+                    if( nearestDistToAABB( _curCamera->getFrustum().getOrigin(), bbMin, bbMax ) > 0 )
+                    {
+                        Modules::renderer().pushOccProxy( 1, bbMin, bbMax, _curLight->_occQueries[occSet] );
+
+                        // Check query result from previous frame
+                        if( _renderDevice->getQueryResult( _curLight->_occQueries[occSet] ) < 1 )
+                        {
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update shadow map
+        if( !noShadows && _curLight->_shadowMapCount > 0 )
+        {
+            timer->endQuery();
+            GPUTimer *timerShadows = Modules::stats().getGPUTimer( EngineStats::ShadowsGPUTime );
+            if( Modules::config().gatherTimeStats ) timerShadows->beginQuery( _frameID );
+
+            updateShadowMap();
+            setupShadowMap( false );
+
+            timerShadows->endQuery();
+            if( Modules::config().gatherTimeStats ) timer->beginQuery( _frameID );
+        }
+        else
+        {
+            setupShadowMap( true );
+        }
+
+        // Calculate light screen space position
+        float bbx, bby, bbw, bbh;
+        _curLight->calcScreenSpaceAABB( _curCamera->getProjMat() * _curCamera->getViewMat(),
+                                        bbx, bby, bbw, bbh );
+
+        // Set scissor rectangle
+        if( bbx != 0 || bby != 0 || bbw != 1 || bbh != 1 )
+        {
+            _renderDevice->setScissorRect( ftoi_r( bbx * _renderDevice->_fbWidth ), ftoi_r( bby * _renderDevice->_fbHeight ),
+                                  ftoi_r( bbw * _renderDevice->_fbWidth ), ftoi_r( bbh * _renderDevice->_fbHeight ) );
+            _renderDevice->setScissorTest( true );
+        }
+
+        // Render
+        Modules::sceneMan().setCurrentView( _curLight->_renderViewID );
+        Modules::sceneMan().sortViewObjects( order );
+// 		Modules::sceneMan().updateQueues( _curCamera->getFrustum(), &_curLight->getFrustum(),
+// 		                                  order, SceneNodeFlags::NoDraw, false, true );
+        setupViewMatrices( _curCamera->getViewMat(), _curCamera->getProjMat() );
+        drawRenderables( shaderContext.empty() ? _curLight->_lightingContext : shaderContext,
+                         theClass, false, &_curCamera->getFrustum(),
+                         &_curLight->getFrustum(), order, occSet );
+        Modules().stats().incStat( EngineStats::LightPassCount, 1 );
+
+        // Reset
+        _renderDevice->setScissorTest( false );
+    }
+
+    _curLight = 0x0;
+
+    timer->endQuery();
+
+    // Draw occlusion proxies
+    if( occSet >= 0 )
+    {
+        setupViewMatrices( _curCamera->getViewMat(), _curCamera->getProjMat() );
+        Modules::renderer().drawOccProxies( OCCPROXYLIST_LIGHTS );
+    }
+}
+
+
+void Renderer::drawCoarseShapes(const std::string &shaderContext, bool noShadows, int occSet)
+{
+    MaterialResource *curMatRes = 0x0;
+
+// 	Modules::sceneMan().updateQueues( _curCamera->getFrustum(), 0x0, RenderingOrder::None,
+// 	                                  SceneNodeFlags::NoDraw, true, false );
+
+    GPUTimer *timer = Modules::stats().getGPUTimer( EngineStats::DefCoarseLightsGPUTime );
+    if( Modules::config().gatherTimeStats ) timer->beginQuery( _frameID );
+
+    auto &views = Modules::sceneMan().getRenderViews();
+    for ( size_t i = 0, s = views.size(); i < s; ++i )
+    {
+        if ( views[ i ].type != RenderViewType::Light ) continue;
+
+        _curLight = ( LightNode * ) views[ i ].node;
+
+        // Check if light is occluded
+        if( occSet >= 0 )
+        {
+            if( occSet > (int)_curLight->_occQueries.size() - 1 )
+            {
+                _curLight->_occQueries.resize( occSet + 1, 0 );
+                _curLight->_occQueriesLastVisited.resize( occSet + 1, 0 );
+            }
+            if( _curLight->_occQueries[occSet] == 0 )
+            {
+                _curLight->_occQueries[occSet] = _renderDevice->createOcclusionQuery();
+                _curLight->_occQueriesLastVisited[occSet] = 0;
+            }
+            else
+            {
+                if( _curLight->_occQueriesLastVisited[occSet] != Modules::renderer().getFrameID() )
+                {
+                    _curLight->_occQueriesLastVisited[occSet] = Modules::renderer().getFrameID();
+
+                    Vec3f bbMin, bbMax;
+                    _curLight->getFrustum().calcAABB( bbMin, bbMax );
+
+                    // Check that viewer is outside light bounds
+                    if( nearestDistToAABB( _curCamera->getFrustum().getOrigin(), bbMin, bbMax ) > 0 )
+                    {
+                        Modules::renderer().pushOccProxy( 1, bbMin, bbMax, _curLight->_occQueries[occSet] );
+
+                        // Check query result from previous frame
+                        if( _renderDevice->getQueryResult( _curLight->_occQueries[occSet] ) < 1 )
+                        {
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update shadow map
+        if( !noShadows && _curLight->_shadowMapCount > 0 )
+        {
+            timer->endQuery();
+            GPUTimer *timerShadows = Modules::stats().getGPUTimer( EngineStats::ShadowsGPUTime );
+            if( Modules::config().gatherTimeStats ) timerShadows->beginQuery( _frameID );
+
+            updateShadowMap();
+            setupShadowMap( false );
+            curMatRes = 0x0;
+
+            timerShadows->endQuery();
+            if( Modules::config().gatherTimeStats ) timer->beginQuery( _frameID );
+        }
+        else
+        {
+            setupShadowMap( true );
+        }
+
+        setupViewMatrices( _curCamera->getViewMat(), _curCamera->getProjMat() );
+
+        if( curMatRes != _curLight->_materialRes )
+        {
+            if( !setMaterial( _curLight->_materialRes,
+                              shaderContext.empty() ? _curLight->_lightingContext : shaderContext ) )
+            {
+                continue;
+            }
+            curMatRes = _curLight->_materialRes;
+        }
+        else
+        {
+            commitGeneralUniforms();
+        }
+
+        _renderDevice->setCullMode( RS_CULL_FRONT );
+        _renderDevice->setDepthTest( false );
+
+        if( _curLight->_fov < 180 )
+        {
+            float r = _curLight->_radius * tanf( degToRad( _curLight->_fov / 2 ) );
+            drawCone( _curLight->_radius, r, _curLight->_absTrans );
+        }
+        else
+        {
+            drawSphere( _curLight->_absPos, _curLight->_radius );
+        }
+
+        Modules().stats().incStat( EngineStats::LightPassCount, 1 );
+
+        // Reset
+        _renderDevice->setCullMode( RS_CULL_BACK );
+        _renderDevice->setDepthTest( true );
+    }
+
+    _curLight = 0x0;
+
+    timer->endQuery();
+
+    // Draw occlusion proxies
+    if( occSet >= 0 )
+    {
+        setupViewMatrices( _curCamera->getViewMat(), _curCamera->getProjMat() );
+        Modules::renderer().drawOccProxies( OCCPROXYLIST_LIGHTS );
+    }
+}
+
+
 void Renderer::dispatchCompute( MaterialResource *materialRes, const std::string &context, uint32 groups_x, uint32 groups_y, uint32 groups_z )
 {
 	if ( !setMaterial( materialRes, context ) ) return;
@@ -2310,6 +2542,16 @@ void Renderer::render( CameraNode *camNode )
 			case DefaultPipelineCommands::DoDeferredLightLoop:
 				drawLightShapes( pc.params[0].getString(), pc.params[1].getBool(), _curCamera->_occSet );
 				break;
+
+            case DefaultPipelineCommands::DoForwardPlusLoop:
+                drawTiledGeometry( pc.params[0].getString(), pc.params[1].getInt(),
+                                   pc.params[2].getBool(), (RenderingOrder::List)pc.params[3].getInt(),
+                                   _curCamera->_occSet );
+                break;
+
+            case DefaultPipelineCommands::DoDeferredCoarsePixelLoop:
+                drawCoarseShapes( pc.params[0].getString(), pc.params[1].getBool(), _curCamera->_occSet );
+                break;
 
 			case DefaultPipelineCommands::SetUniform:
 				if( pc.params[0].getResource() && pc.params[0].getResource()->getType() == ResourceTypes::Material )

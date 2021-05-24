@@ -54,6 +54,9 @@ struct DefaultPipelineCommands
 		DrawQuad,
 		DoForwardLightLoop,
 		DoDeferredLightLoop,
+        DoForwardPlusLoop,
+        DoDeferredCoarsePixelLoop,
+//      DispatchComputeShader,
 		SetUniform,
 		ExternalCommand = 256 // must be the last command
 	};

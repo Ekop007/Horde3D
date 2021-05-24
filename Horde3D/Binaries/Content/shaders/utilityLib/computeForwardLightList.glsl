@@ -1,0 +1,139 @@
+
+#define PIXELS_PER_TILE 16
+
+
+#define BLOCK_SIZE 16
+struct Light {
+	vec4 beginPos; // beginPos.w is intensity
+	vec4 endPos; // endPos.w is radius
+	vec4 color; // color.w is time
+};
+
+struct Frustum {
+    vec4 planes[4];
+};
+
+layout(binding = 1) uniform sampler2D depthSampler;
+
+layout(binding = 4) uniform Params {
+	mat4 viewMat;
+    mat4 inverseProj;
+    ivec2 screenDimensions;
+    ivec2 numThreads;
+	int numLights;
+	float time;
+} params;
+
+layout(binding = 5) buffer Frustums {
+    Frustum frustums[];
+};
+
+layout(binding = 3) buffer Lights {
+   Light lights[];
+};
+
+layout(binding = 7) buffer LightIndex {
+	int lightIndex[];
+};
+
+layout(binding = 8) buffer LightGrid {
+	int lightGrid[];
+};
+
+// Convert clip space coordinates to view space
+vec4 ClipToView( vec4 clip )
+{
+    // View space position.
+    vec4 view = params.inverseProj * clip ;
+    // Perspective projection.
+    view = view / view.w;
+
+    return view;
+}
+
+// Convert screen space coordinates to view space.
+vec4 ScreenToView( vec4 screen )
+{
+    // Convert to normalized texture coordinates
+    vec2 texCoord = screen.xy / params.screenDimensions;
+
+    // Convert to clip space
+    vec4 clip = vec4( vec2( texCoord.x, texCoord.y ) * 2.0f - 1.0f, screen.z, screen.w );
+
+    return ClipToView( clip );
+}
+
+bool SphereInsidePlane(vec3 c, float r, vec3 N, float d) {
+	return dot(N, c) - d < -r;
+}
+
+bool SphereInsideFrustum(vec3 c, float r, Frustum frustum, float zNear, float zFar) {
+	bool result = true;
+
+	if (c.z - r > zNear || c.z + r < zFar) {
+		result = false;
+	}
+
+	for (int i = 0; i < 4 && result; ++i) {
+		if (SphereInsidePlane(c, r, frustum.planes[i].xyz, frustum.planes[i].w)) {
+			result = false;
+		}
+	}
+
+	return result;
+}
+
+layout (local_size_x = 16, local_size_y = 16) in;
+void main()
+{
+	if (gl_GlobalInvocationID.x >= params.numThreads.x
+	    || gl_GlobalInvocationID.y >= params.numThreads.y) {
+		return;
+	}
+
+	// tile index
+	uint index = gl_GlobalInvocationID.y * uint(params.numThreads.x)
+		+ gl_GlobalInvocationID.x;
+	uint lightIndexBegin = index * MAX_NUM_LIGHTS_PER_TILE;
+	uint numLightsInTile = 0;
+	vec2 texcoordUnit = 1. / params.screenDimensions;
+	float zNear = -1000000.;
+	float zFar = 1000000.;
+
+	for (int i = 0; i < PIXELS_PER_TILE; ++i) {
+		for (int j = 0; j < PIXELS_PER_TILE; ++j) {
+			vec2 offset = vec2(i + 0.5, j + 0.5);
+			vec2 texcoord = (gl_GlobalInvocationID.xy * PIXELS_PER_TILE + offset) * texcoordUnit;
+			texcoord.y = 1. - texcoord.y;
+			float depth = texture(depthSampler, texcoord).x;
+			vec4 screenDepth = vec4(texcoord, depth, 1.);
+			vec4 viewDepth = ScreenToView(screenDepth);
+
+			zNear = max(zNear, viewDepth.z);
+			zFar = min(zFar, viewDepth.z);
+		}
+	}
+
+    float diff = zNear - zFar; // distance
+    zFar -= diff;
+    zNear += diff;
+
+	// lights[index].beginPos = vec4(minDepth, maxDepth, 0., 0.);
+
+	for (int i = 0; i < params.numLights; ++i) {
+		float t = sin(params.time * i * .001f);
+        vec3 beginPos = lights[i].beginPos.xyz;
+		vec3 endPos = lights[i].endPos.xyz;
+		vec4 pos = params.viewMat * vec4((1 - t) * beginPos + t * endPos, 1.f);
+		float radius = lights[i].endPos.w;
+
+		if (SphereInsideFrustum(pos.xyz, radius, frustums[index], zNear, zFar)) {
+			lightIndex[lightIndexBegin + numLightsInTile] = i;
+			numLightsInTile += 1;
+			if(numLightsInTile >= MAX_NUM_LIGHTS_PER_TILE)
+				break;
+		}
+	}
+
+	lightGrid[index] = int(numLightsInTile);
+}

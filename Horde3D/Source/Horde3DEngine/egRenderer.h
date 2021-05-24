@@ -242,8 +242,11 @@ protected:
 	void drawGeometry( const std::string &shaderContext, int theClass,
 	                   RenderingOrder::List order, int occSet );
 	void drawLightGeometry( const std::string &shaderContext, int theClass,
-	                        bool noShadows, RenderingOrder::List order, int occSet );
-	void drawLightShapes( const std::string &shaderContext, bool noShadows, int occSet );
+                            bool noShadows, RenderingOrder::List order, int occSet );       // forward rendering
+    void drawLightShapes( const std::string &shaderContext, bool noShadows, int occSet );   // deffered shading
+    void drawTiledGeometry( const std::string &shaderContext, int theClass,
+                            bool noShadows, RenderingOrder::List order, int occSet );       // tiled forward rendering
+    void drawCoarseShapes( const std::string &shaderContext, bool noShadows, int occSet );  // deffered coarse Pixel shading
 	
 	void drawRenderables( const std::string &shaderContext, int theClass, bool debugView,
 		const Frustum *frust1, const Frustum *frust2, RenderingOrder::List order, int occSet );

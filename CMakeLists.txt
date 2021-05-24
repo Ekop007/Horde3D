@@ -152,7 +152,7 @@ include(Extensions/Extensions.txt)
 # Add engine target.
 add_subdirectory(Horde3D)
 
-option(HORDE3D_BUILD_EDITOR "Build Horde3D Editor" OFF)
+option(HORDE3D_BUILD_EDITOR "Build Horde3D Editor" On)
 if(HORDE3D_BUILD_EDITOR)
   add_subdirectory(Horde3DEditor)
 endif(HORDE3D_BUILD_EDITOR)

@@ -581,6 +581,8 @@ bool SampleApplication::initResources()
 	_pipelineRes[0] = h3dAddResource( H3DResTypes::Pipeline, "pipelines/forward.pipeline.xml", 0 );
 	_pipelineRes[1] = h3dAddResource( H3DResTypes::Pipeline, "pipelines/deferred.pipeline.particles.xml", 0 );
 	_pipelineRes[2] = h3dAddResource( H3DResTypes::Pipeline, "pipelines/hdr.pipeline.xml", 0 );
+    _pipelineRes[3] = h3dAddResource( H3DResTypes::Pipeline, "pipelines/tiledForward.pipeline.xml", 0 );
+    _pipelineRes[4] = h3dAddResource( H3DResTypes::Pipeline, "pipelines/deferredCoarsePixel.pipeline.xml", 0 );
 	
 	// Overlays
 	_fontMatRes = h3dAddResource( H3DResTypes::Material, "overlays/font.material.xml", 0 );
@@ -680,13 +682,29 @@ void SampleApplication::render()
 	h3dShowFrameStats( _fontMatRes, _panelMatRes, _statMode );
 	if( _statMode > 0 )
     {
-        std::string piperes_name = "Pipeline: forward";
+        std::string piperes_name;
+        switch ( _curPipeline )
+        {
+            case 1:
+                piperes_name = "Pipeline: deferred";
+                break;
 
-        if( _curPipeline == 1 )
-            piperes_name = "Pipeline: deferred";
+            case 2:
+                piperes_name = "Pipeline: HDR";
+                break;
 
-        else if( _curPipeline == 2 )
-            piperes_name = "Pipeline: HDR";
+            case 3:
+                piperes_name = "Pipeline: tiled_forward";
+                break;
+
+            case 4:
+                piperes_name = "Pipeline: coarse_deferred";
+                break;
+
+            default:
+                piperes_name = "Pipeline: forward";
+                break;
+        }
 
         h3dShowText( piperes_name.c_str(), 0.03f, 0.23f, 0.026f, 1, 1, 1, _fontMatRes );
         
@@ -772,7 +790,7 @@ void SampleApplication::keyEventHandler( int key, int keyState, int mods )
 
     case KEY_F3:
     {
-        setPipeline( (_curPipeline + 1) % 3 );
+        setPipeline( (_curPipeline + 1) % 5 );
     }
     break;
 

@@ -190,7 +190,7 @@ protected:
 
     // Engine objects
     int          _curPipeline;
-    H3DRes       _pipelineRes[3];
+    H3DRes       _pipelineRes[5];
     H3DRes       _fontMatRes, _panelMatRes, _logoMatRes;
     H3DNode      _cam;
 	int			 _renderInterface;
