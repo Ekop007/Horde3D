@@ -1713,7 +1713,8 @@ void Renderer::drawTiledGeometry( const string &shaderContext, int theClass,
 // 	Modules::sceneMan().updateQueues( _curCamera->getFrustum(), 0x0, RenderingOrder::None,
 // 	                                  SceneNodeFlags::NoDraw, true, false );
 
-    GPUTimer *timer = Modules::stats().getGPUTimer( EngineStats::FwdPlusLightsGPUTime );
+    //const auto& material = Modules::resMan().findResource( ResourceTypes::Material, "tileCompute" );
+    GPUTimer *timer = Modules::stats().getGPUTimer( EngineStats::TileFwdLightsGPUTime );
     if( Modules::config().gatherTimeStats ) timer->beginQuery( _frameID );
 
     for( size_t i = 0, s = Modules::sceneMan().getLightQueue().size(); i < s; ++i )
@@ -2543,7 +2544,7 @@ void Renderer::render( CameraNode *camNode )
 				drawLightShapes( pc.params[0].getString(), pc.params[1].getBool(), _curCamera->_occSet );
 				break;
 
-            case DefaultPipelineCommands::DoForwardPlusLoop:
+            case DefaultPipelineCommands::DoTileForwardLoop:
                 drawTiledGeometry( pc.params[0].getString(), pc.params[1].getInt(),
                                    pc.params[2].getBool(), (RenderingOrder::List)pc.params[3].getInt(),
                                    _curCamera->_occSet );

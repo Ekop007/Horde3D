@@ -589,6 +589,10 @@ bool SampleApplication::initResources()
 	_panelMatRes = h3dAddResource( H3DResTypes::Material, "overlays/panel.material.xml", 0 );
 	_logoMatRes = h3dAddResource( H3DResTypes::Material, "overlays/logo.material.xml", 0 );
 
+    // Shader for Tile Forward Rendering
+
+    // Shader for Deferred Coarse Pixel Shading
+
     // Help info
     _helpLabels = new const char*[_helpRows];
     _helpValues = new const char*[_helpRows];

@@ -54,7 +54,7 @@ struct DefaultPipelineCommands
 		DrawQuad,
 		DoForwardLightLoop,
 		DoDeferredLightLoop,
-        DoForwardPlusLoop,
+        DoTileForwardLoop,
         DoDeferredCoarsePixelLoop,
 //      DispatchComputeShader,
 		SetUniform,

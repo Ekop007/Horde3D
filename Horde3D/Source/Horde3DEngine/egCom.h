@@ -150,7 +150,7 @@ struct EngineStats
 		ParticleSimTime,
 		FwdLightsGPUTime,
 		DefLightsGPUTime,
-        FwdPlusLightsGPUTime,
+        TileFwdLightsGPUTime,
         DefCoarseLightsGPUTime,
 		ShadowsGPUTime,
 		ParticleGPUTime,

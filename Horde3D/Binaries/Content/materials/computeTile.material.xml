@@ -1,0 +1,6 @@
+ <Material>
+	<Shader source="shaders/tileCompute.shader"/>
+	<DataBuffer name="lightBuffer" source="lightStructBuf" />
+	<DataBuffer name="visibleLightIds" source="lightIdBuf" />
+	<Uniform name="initBuffers" a="0" />
+</Material>

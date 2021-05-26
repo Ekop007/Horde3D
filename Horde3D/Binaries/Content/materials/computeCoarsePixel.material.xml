@@ -1,0 +1,5 @@
+<Material>
+	<Shader source="shaders/coarsePixelCompute.shader"/>
+        <DataBuffer name="coarsePixelBuf" source="structCorsePixelBuf" />
+        <Uniform name="initBuffers" a="0" />
+</Material>

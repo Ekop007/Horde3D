@@ -102,6 +102,26 @@ OpenGL4
 		VertexShader = compile GLSL VS_GENERAL_GL4;
 		PixelShader = compile GLSL FS_AMBIENT_GL4;
 	}
+
+        context COARSEATTRIBPASS
+        {
+
+        }
+
+        context COARSELIGHTING
+        {
+                VertexShader = compile GLSL VS_GENERAL_GL4;
+                PixelShader = compile GLSL FS_LIGHTING_GL4;
+
+                ZWriteEnable = false;
+                BlendMode = Add;
+        }
+
+        context COARSEAMBIENT
+        {
+                VertexShader = compile GLSL VS_GENERAL_GL4;
+                PixelShader = compile GLSL FS_AMBIENT_GL4;
+        }
 }
 
 OpenGLES3
