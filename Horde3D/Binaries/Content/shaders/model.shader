@@ -105,7 +105,8 @@ OpenGL4
 
         context COARSEATTRIBPASS
         {
-
+                VertexShader = compile GLSL VS_GENERAL_GL4;
+                PixelShader = compile GLSL FS_AMBIENT_GL4;
         }
 
         context COARSELIGHTING

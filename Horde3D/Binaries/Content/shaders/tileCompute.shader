@@ -1,12 +1,5 @@
  [[FX]]
 
-// Samplers
-sampler2D albedoMap = sampler_state
-{
-	Texture = "textures/particles/compParticle.png";
-	Filter = Bilinear;
-	MaxAnisotropy = 1;
-};
 
 // Buffers
 buffer ParticleData;
