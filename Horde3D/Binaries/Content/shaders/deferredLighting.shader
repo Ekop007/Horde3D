@@ -83,6 +83,15 @@ OpenGL4
 		VertexShader = compile GLSL VS_FSQUAD_GL4;
 		PixelShader = compile GLSL FS_COPY_DEPTH_GL4;
 	}
+
+        context COARSELIGHTING
+        {
+                VertexShader = compile GLSL VS_VOLUME_GL4;
+                PixelShader = compile GLSL FS_LIGHTING_GL4;
+
+                ZWriteEnable = false;
+                BlendMode = Add;
+        }
 }
 
 OpenGLES3
